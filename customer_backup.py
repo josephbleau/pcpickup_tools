@@ -71,11 +71,14 @@ class Backup:
 	def copy(self, src, dest, callback):
 		if(not self.copying):
 			return
-			
+		
 		try:
+			print('src: ' + src)
+			print('dest: ' + dest)
+			
 			fin = open(src, 'rb')
 			fout = open(dest, 'wb')
-			
+
 			#Set up reporting
 			self.copy_size = os.path.getsize(src)
 			self.copy_progress = 0
@@ -107,10 +110,11 @@ class Backup:
 				fout.close()
 		except IOError:
 			print 'Error: source file does not exist.\n'
-			
+
 	def cptree(self, src, dst, callback=None):
 			
 		names = os.listdir(src)
+		print('dest:' + dst)
 		os.makedirs(dst)
 		
 		for name in names:
@@ -177,8 +181,25 @@ class Backup:
 		else:
 			return None
 	
+	def get_other_shit(self, winver, user_folder):
+		target = os.path.join(self.target, 'Other Files')
+		os.makedirs(target)
+		
+		# Outlook.pst backup
+		if(winver == '7' or winver =='vista'):
+			source = os.path.join(self.source, user_folder, 'AppData', 'Local',
+			                      'Microsoft', 'Outlook', 'Outlook.pst')
+			self.copy(source, os.path.join(target, 'Outlook.pst'), self.callback)
+		elif(winver == 'xp'):
+			source = os.path.join(self.source, user_folder, 'Local Settings',
+			                      'Application Data', 'Microsoft', 'Outlook', 
+			                      'Outlook.pst')
+			self.copy(source, os.path.join(target, 'Outlook.pst'), self.callback)
+			                      
+
 	def commence(self, update_callback=None):
 		# The search begins		
+		self.callback = update_callback
 		winver = Backup.determine_winver(self.source)
 		user_folder_loc = self.get_user_folder_loc(self.source, winver)
 			
@@ -190,6 +211,20 @@ class Backup:
 			
 			for user in self.users:
 				self.copy_user = user
+				os.makedirs(os.path.join(self.target, user))
+				
+				# Check for misc other important files
+				self.get_other_shit(winver, os.path.join(self.source, user_folder_loc, user))
+				
+				# Check for misc crap in their user folder proper.
+				misc_files = os.listdir(os.path.join(self.source, user_folder_loc, user))
+				for f in misc_files:
+					fullpath = os.path.join(user_folder_loc, user, f)
+					if(not os.path.isdir(fullpath)):
+						print os.path.join(fullpath)
+						self.copy(fullpath,
+						          os.path.join(self.target, user, f),
+						          update_callback)
 
 				for folder in self.important_folders:
 					copy_src = os.path.join(user_folder_loc, user,folder)
