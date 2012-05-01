@@ -14,10 +14,11 @@ import locale
 # it will attempt to then backup the user and driver folders
 
 class Backup:
-	def __init__(self, source, target):
+	def __init__(self, source, target, userid):
 		self.source = source
 		self.target = target
 		self.users = []
+		self.userid = userid
 		self.copying = True
 		self.important_folders = []
 	
@@ -184,6 +185,9 @@ class Backup:
 		if(not user_folder_loc == None and self.populate_users(user_folder_loc)):
 			self.important_folders = self.get_important_folders(winver)
 			
+			os.makedirs(os.path.join(self.target, self.userid))
+			self.target = os.path.join(self.target, self.userid)
+			
 			for user in self.users:
 				self.copy_user = user
 
@@ -258,16 +262,24 @@ class Application:
 		
 
 	def commence_ze_copy(self, widget, data=None):
-		self.copy_button.set_label("Copying...")
-		
-		self.backup = Backup(self.source_dir,
-		                     self.target_dir)
-		                     
-		# Let's verify that these are valid directories, and if not
-		# alert the user of their error.
+		if(not self.id_text.get_text().isdigit()):
+			print 'Error: Customer ID should be numeric.'
+			return
+			
+		if(self.source_dir != None and 
+		   self.target_dir != None):
+			self.backup = Backup(self.source_dir,
+								 self.target_dir,
+								 self.id_text.get_text())
+		else:
+			print 'Error: You must select a source and target directory.'
+			return
+
 		if(not self.backup.valid_directories()):
 			print 'Hey, stupid, these aren\'t directories.'
+			return
 		else:
+			self.copy_button.set_label("Copying...")
 			self.progdia = self.generate_progdia()
 			
 			self.cancel_button.connect("clicked", self.backup.cancel_copy)
@@ -335,6 +347,7 @@ class Application:
 	
 		return self.progdia
 	
+
 	def __init__(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.connect("delete_event", self.delete_event)
@@ -347,7 +360,12 @@ class Application:
 		self.progdia = None
 		self.source = None
 		self.target = None
+		self.source_dir = None
+		self.target_dir = None
 				
+		# Text box for user ID
+		self.id_text = gtk.Entry()
+			
 		# Setup buttons
 		self.source_button = gtk.Button('Source')
 		self.target_button = gtk.Button('Target')
@@ -357,7 +375,8 @@ class Application:
 		self.target_button.connect("clicked", self.dialog_on_click, "target");
 		self.copy_button.connect("clicked", self.commence_ze_copy)
 		
-		#  Path labels
+		#  labels
+		self.id_label = gtk.Label("Customer ID:")
 		self.source_label = gtk.Label("Select a source path:")
 		self.target_label = gtk.Label("Select a target path:")
 	
@@ -372,13 +391,15 @@ class Application:
 		                            'various OEMs.\n')
 		
 		# Main Table Layout
-		self.table = gtk.Table(rows=4, columns=2, homogeneous=False)
+		self.table = gtk.Table(rows=5, columns=2, homogeneous=False)
 		self.table.set_row_spacings(10)
 		self.table.attach(self.source_label,  0,1,1,2)
 		self.table.attach(self.target_label,  0,1,2,3)
 		self.table.attach(self.source_button, 1,2,1,2)
 		self.table.attach(self.target_button, 1,2,2,3)
-		self.table.attach(self.copy_button, 0,2,3,4)
+		self.table.attach(self.id_label, 0,1,3,4)
+		self.table.attach(self.id_text, 1,2,3,4)
+		self.table.attach(self.copy_button, 0,2,4,5)
 		self.table.attach(self.desc_label, 0,2,0,1)
 		
 		self.window.add(self.table)
@@ -391,6 +412,8 @@ class Application:
 		self.target_button.show()
 		self.copy_button.show()
 		self.desc_label.show()
+		self.id_label.show()
+		self.id_text.show()
 		self.window.show()
 		
 	def main(self):
